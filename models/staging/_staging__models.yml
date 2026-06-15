@@ -1,0 +1,69 @@
+version: 2
+
+models:
+  - name: stg_customers
+    description: One row per customer, with light cleaning (lowercased/trimmed email) applied to the raw source.
+    columns:
+      - name: customer_id
+        description: Primary key, surrogate-free — matches the source system's customer identifier.
+        data_tests:
+          - unique
+          - not_null
+      - name: email
+        description: Customer email address, normalized to lowercase.
+        data_tests:
+          - not_null
+      - name: region
+        description: Sales region the customer belongs to.
+
+  - name: stg_orders
+    description: One row per order, with status normalized to lowercase and amounts cast to a fixed-precision numeric type.
+    columns:
+      - name: order_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: Foreign key to stg_customers.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: status
+        description: "Order lifecycle state: placed, completed, returned, or cancelled."
+        data_tests:
+          - accepted_values:
+              values: ['placed', 'completed', 'returned', 'cancelled']
+      - name: order_total
+        description: Total amount the customer was charged for the order, in EUR.
+        data_tests:
+          - not_null
+          - not_negative
+
+  - name: stg_payments
+    description: One row per payment attempt against an order. Includes both successful and failed attempts.
+    columns:
+      - name: payment_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: Foreign key to stg_orders.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+      - name: payment_status
+        description: "Outcome of the payment attempt: success or failed."
+        data_tests:
+          - accepted_values:
+              values: ['success', 'failed']
+      - name: amount
+        description: Amount of the payment attempt, in EUR.
+        data_tests:
+          - not_null
+          - not_negative

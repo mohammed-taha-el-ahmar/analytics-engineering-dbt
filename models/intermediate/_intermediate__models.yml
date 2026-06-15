@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: int_order_payments
+    description: >
+      One row per order, joined to the total amount successfully paid
+      against it. Adds `amount_paid` and `amount_discrepancy` (order_total
+      minus amount_paid). Ephemeral — compiled inline into downstream marts,
+      not materialized as its own table.
+    columns:
+      - name: order_id
+        description: Primary key, one row per order.
+        data_tests:
+          - unique
+          - not_null
+      - name: amount_paid
+        description: Sum of `amount` across all *successful* payments for this order. Zero if no successful payment exists yet.
+        data_tests:
+          - not_null
+          - not_negative
+      - name: amount_discrepancy
+        description: order_total minus amount_paid. Zero means the order is fully reconciled; non-zero flags a gap between what was charged and what was collected.
+        data_tests:
+          - not_null

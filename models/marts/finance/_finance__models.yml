@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: fct_daily_revenue
+    description: >
+      Daily revenue rollup — one row per order_date. Incremental: only the
+      most recent two days are recomputed on each run, keeping run time and
+      warehouse cost flat as order history grows. This is the model a "Daily
+      Revenue" BI dashboard would query directly.
+    columns:
+      - name: order_date
+        description: Calendar date the revenue is attributed to. Unique key for the incremental merge.
+        data_tests:
+          - unique
+          - not_null
+      - name: order_count
+        data_tests:
+          - not_null
+          - not_negative
+      - name: gross_revenue
+        description: Sum of order_total for all orders placed on this date.
+        data_tests:
+          - not_null
+          - not_negative
+      - name: collected_revenue
+        description: Sum of amount_paid for all orders placed on this date.
+        data_tests:
+          - not_null
+          - not_negative

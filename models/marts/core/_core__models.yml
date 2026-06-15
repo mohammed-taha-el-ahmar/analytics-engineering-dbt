@@ -1,0 +1,62 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: >
+      One row per order. The central fact table for order-level analysis —
+      every "where does this number come from" question about revenue,
+      order counts, or payment reconciliation traces back to this model.
+    columns:
+      - name: order_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: Foreign key to dim_customers.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+      - name: order_status
+        data_tests:
+          - accepted_values:
+              values: ['placed', 'completed', 'returned', 'cancelled']
+      - name: order_total
+        description: Amount invoiced to the customer.
+        data_tests:
+          - not_null
+          - not_negative
+      - name: amount_paid
+        description: Amount successfully collected via payments.
+        data_tests:
+          - not_null
+          - not_negative
+      - name: is_reconciled
+        description: True if amount_paid matches order_total (within 1 cent).
+        data_tests:
+          - not_null
+
+  - name: dim_customers
+    description: >
+      One row per customer, enriched with lifetime order count and revenue.
+      Joins cleanly to fct_orders on customer_id for any customer- or
+      region-level cut.
+    columns:
+      - name: customer_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: email
+        data_tests:
+          - not_null
+      - name: lifetime_order_count
+        data_tests:
+          - not_null
+          - not_negative
+      - name: lifetime_revenue
+        data_tests:
+          - not_null
+          - not_negative

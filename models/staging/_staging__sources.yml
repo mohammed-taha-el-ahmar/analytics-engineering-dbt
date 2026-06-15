@@ -1,0 +1,52 @@
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      Raw operational tables. In this project they're loaded via `dbt seed`
+      so the whole pipeline runs on a free-trial Snowflake account with no
+      external dependencies — in a production setup these same tables would
+      land in a RAW schema via an ingestion tool (e.g. Fivetran, Airbyte, or
+      a custom EL job) and dbt would simply point at them.
+    schema: raw
+    tables:
+      - name: raw_customers
+        description: One row per customer who has placed at least one order.
+        columns:
+          - name: customer_id
+            description: Primary key.
+            data_tests:
+              - unique
+              - not_null
+
+      - name: raw_orders
+        description: One row per order placed by a customer.
+        columns:
+          - name: order_id
+            description: Primary key.
+            data_tests:
+              - unique
+              - not_null
+          - name: customer_id
+            description: Foreign key to raw_customers.
+            data_tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'raw_customers')
+                  field: customer_id
+
+      - name: raw_payments
+        description: One row per payment attempt against an order. An order can have multiple payment attempts (retries, split payments).
+        columns:
+          - name: payment_id
+            description: Primary key.
+            data_tests:
+              - unique
+              - not_null
+          - name: order_id
+            description: Foreign key to raw_orders.
+            data_tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'raw_orders')
+                  field: order_id

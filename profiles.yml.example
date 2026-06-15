@@ -1,0 +1,61 @@
+# Example dbt profile for this project.
+#
+# dbt looks for profiles.yml in ~/.dbt/profiles.yml by default (NOT in this
+# repo). Copy this file there, or point DBT_PROFILES_DIR at a directory
+# containing it:
+#
+#   mkdir -p ~/.dbt
+#   cp profiles.yml.example ~/.dbt/profiles.yml
+#
+# Credentials are pulled from environment variables so nothing secret is ever
+# committed. Set these in your shell (or a local .env file you do NOT commit):
+#
+#   export SNOWFLAKE_ACCOUNT="abcd-xy12345"      # the part before .snowflakecomputing.com
+#   export SNOWFLAKE_USER="DBT_USER"
+#   export SNOWFLAKE_PASSWORD="..."
+#   export SNOWFLAKE_ROLE="TRANSFORM_ROLE"
+#   export SNOWFLAKE_WAREHOUSE="TRANSFORM_WH"
+#   export SNOWFLAKE_DATABASE="ANALYTICS"
+#   export SNOWFLAKE_SCHEMA="DBT_DEV"            # dev schema, e.g. dbt_<yourname>
+#
+# See README.md for the matching Snowflake setup script (warehouse, role,
+# database, grants).
+
+analytics_engineering:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA') }}"
+      threads: 4
+      client_session_keep_alive: false
+
+    # Optional second target for CI or a shared "prod" build. Point this at a
+    # separate schema/role so dev experiments never touch prod marts.
+    prod:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      schema: "DBT_PROD"
+      threads: 4
+      client_session_keep_alive: false
+
+    # Optional: run the whole project locally against DuckDB — no Snowflake
+    # account, no credentials, no cost. Useful for fast iteration on model
+    # logic before pointing at the real warehouse.
+    # Requires: uv sync --extra dev (installs dbt-duckdb)
+    # Usage:    uv run dbt build --target local
+    local:
+      type: duckdb
+      path: dev.duckdb
+      threads: 1

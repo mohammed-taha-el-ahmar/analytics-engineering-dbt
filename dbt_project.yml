@@ -1,0 +1,67 @@
+name: "analytics_engineering"
+version: "1.0.0"
+config-version: 2
+
+# This must match a profile name in profiles.yml
+profile: "analytics_engineering"
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+vars:
+  # Earliest order_date present in the seed data. Used by the incremental
+  # finance model on its very first (full) build.
+  start_date: "2024-01-01"
+
+# ----------------------------------------------------------------------------
+# Seeds: the "raw operational tables". In a real deployment these would be
+# loaded by an ingestion tool (Fivetran/Airbyte/custom EL) directly into a
+# RAW schema in Snowflake. Seeds let this project be runnable end-to-end on a
+# free-trial Snowflake account with zero external dependencies.
+# ----------------------------------------------------------------------------
+seeds:
+  analytics_engineering:
+    +schema: raw
+
+# ----------------------------------------------------------------------------
+# Models: layered architecture
+#
+#   staging      -> 1:1 with source tables, light cleaning/renaming/casting.
+#                    Materialized as views: cheap, always reflect raw data,
+#                    nothing to maintain incrementally.
+#
+#   intermediate -> Reusable joins/aggregations that don't belong in a single
+#                    mart. Materialized as ephemeral: they exist only as CTEs
+#                    inlined into downstream models, so they don't clutter the
+#                    warehouse with extra objects while still being testable
+#                    and documented as their own dbt nodes.
+#
+#   marts        -> Business-facing, tested, documented tables that BI tools
+#                    query directly. Split into subject areas (core, finance)
+#                    so ownership and lineage stay legible as the project
+#                    grows.
+# ----------------------------------------------------------------------------
+models:
+  analytics_engineering:
+    staging:
+      +materialized: view
+      +schema: staging
+
+    intermediate:
+      +materialized: ephemeral
+
+    marts:
+      core:
+        +materialized: table
+        +schema: marts
+      finance:
+        +schema: marts_finance

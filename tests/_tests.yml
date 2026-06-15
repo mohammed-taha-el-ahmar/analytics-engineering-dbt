@@ -1,0 +1,17 @@
+version: 2
+
+tests:
+  - name: assert_completed_orders_reconcile_with_payments
+    description: >
+      Fails if any order with status = 'completed' has a gap (> 1 cent)
+      between order_total (invoiced) and amount_paid (collected). This is
+      the core "trust the revenue number" check for the finance mart.
+    config:
+      severity: error
+
+  - name: assert_no_future_order_dates
+    description: >
+      Fails if stg_orders contains any order_date later than the current
+      date — guards against bad test data or timezone bugs reaching marts.
+    config:
+      severity: error
