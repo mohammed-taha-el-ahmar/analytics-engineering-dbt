@@ -1,0 +1,42 @@
+name: CI
+
+# Runs on every push and PR. Lints SQL and runs the full dbt build+test suite
+# against the local DuckDB target -- no Snowflake account or secrets needed,
+# so this also runs cleanly on PRs from forks.
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies (incl. dbt-duckdb for local builds)
+        run: uv sync --extra dev
+
+      - name: Install dbt packages (dbt_utils)
+        run: uv run dbt deps
+
+      - name: Configure dbt profile (local DuckDB target)
+        run: |
+          mkdir -p ~/.dbt
+          cp profiles.yml.example ~/.dbt/profiles.yml
+
+      - name: Lint SQL
+        run: uv run sqlfluff lint models tests macros
+
+      - name: dbt build (seed + run + test)
+        run: uv run dbt build --target local
+
+      - name: dbt docs generate (catches doc/lineage errors)
+        run: uv run dbt docs generate --target local

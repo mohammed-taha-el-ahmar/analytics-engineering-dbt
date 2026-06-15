@@ -1,0 +1,17 @@
+# dbt
+target/
+dbt_packages/
+logs/
+dev.duckdb
+*.duckdb
+
+# dbt profile (lives in ~/.dbt/, never in the repo)
+profiles.yml
+
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+
+# Local env files
+.env

@@ -1,0 +1,25 @@
+[sqlfluff]
+templater = dbt
+dialect = snowflake
+max_line_length = 120
+exclude_rules = structure.column_order, references.keywords
+
+# sqlfluff's dbt templater compiles models via dbt before linting, so it
+# needs a working target. We point it at the local DuckDB target
+# (profiles.yml.example -> local), via the same ~/.dbt/profiles.yml that
+# `dbt build --target local` uses -- zero Snowflake credentials needed.
+[sqlfluff:templater:dbt]
+profile = analytics_engineering
+target = local
+
+[sqlfluff:indentation]
+tab_space_size = 4
+
+# Keep line length reasonable but don't be too aggressive on generated/CTE-heavy SQL
+# Allow uppercase or lowercase keywords as long as it's consistent per file;
+# this project uses lowercase.
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.functions]
+capitalisation_policy = lower
