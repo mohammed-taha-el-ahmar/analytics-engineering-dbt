@@ -1,15 +1,18 @@
 name: CD
 
-# Runs on merge to main: builds the project against the real Snowflake
-# warehouse (prod target) and publishes the generated dbt docs site
-# (data catalog + lineage graph) to GitHub Pages.
+# Runs on merge to main.
 #
-# Requires these repository secrets (Settings -> Secrets and variables ->
-# Actions): SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PASSWORD,
-# SNOWFLAKE_ROLE, SNOWFLAKE_WAREHOUSE, SNOWFLAKE_DATABASE.
+# 1. smoke-test (REQUIRED): full dbt build + test against DuckDB — no
+#    secrets needed. This is the quality gate; if it fails the workflow fails.
 #
-# Also requires GitHub Pages enabled for this repo with source = "GitHub
-# Actions" (Settings -> Pages).
+# 2. deploy-snowflake (OPTIONAL): builds against Snowflake and publishes
+#    dbt docs to GitHub Pages. Only runs when Snowflake secrets are
+#    configured. Skipped gracefully otherwise — it is NOT a success criteria.
+#
+# To enable the optional Snowflake deploy:
+#   Settings -> Secrets -> add SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER,
+#   SNOWFLAKE_PASSWORD, SNOWFLAKE_ROLE, SNOWFLAKE_WAREHOUSE, SNOWFLAKE_DATABASE.
+#   Settings -> Pages -> Source = "GitHub Actions".
 on:
   push:
     branches:
@@ -24,9 +27,52 @@ concurrency:
   group: "pages"
   cancel-in-progress: false
 
+# ---------------------------------------------------------------------------
+# Job 1: Smoke test against DuckDB (required — this is the quality gate)
+# ---------------------------------------------------------------------------
 jobs:
-  build-and-publish-docs:
+  smoke-test:
+    name: "Smoke Test (DuckDB)"
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies (incl. dbt-duckdb)
+        run: uv sync --extra dev
+
+      - name: Install dbt packages (dbt_utils)
+        run: uv run dbt deps
+
+      - name: Configure dbt profile
+        run: |
+          mkdir -p ~/.dbt
+          cp profiles.yml.example ~/.dbt/profiles.yml
+
+      - name: Lint SQL
+        run: uv run sqlfluff lint models tests macros
+
+      - name: dbt build (seed + run + test against DuckDB)
+        run: uv run dbt build --target local
+
+      - name: Generate dbt docs (catches doc/lineage errors)
+        run: uv run dbt docs generate --target local
+
+  # ---------------------------------------------------------------------------
+  # Job 2: Deploy to Snowflake + publish docs (optional)
+  # Runs only after smoke-test passes AND Snowflake secrets are available.
+  # ---------------------------------------------------------------------------
+  deploy-snowflake:
+    name: "Deploy to Snowflake + Publish Docs (optional)"
+    needs: smoke-test
+    if: ${{ vars.SNOWFLAKE_ENABLED == 'true' || secrets.SNOWFLAKE_ACCOUNT != '' }}
+    runs-on: ubuntu-latest
+    continue-on-error: true  # failure here does NOT fail the workflow
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -52,7 +98,7 @@ jobs:
       - name: Install dbt packages (dbt_utils)
         run: uv run dbt deps
 
-      - name: Configure dbt profile (Snowflake prod target)
+      - name: Configure dbt profile
         run: |
           mkdir -p ~/.dbt
           cp profiles.yml.example ~/.dbt/profiles.yml
