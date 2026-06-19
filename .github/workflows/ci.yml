@@ -1,8 +1,5 @@
 name: CI
 
-# Runs on every push and PR. Lints SQL and runs the full dbt build+test suite
-# against the local DuckDB target -- no Snowflake account or secrets needed,
-# so this also runs cleanly on PRs from forks.
 on:
   pull_request:
   push:

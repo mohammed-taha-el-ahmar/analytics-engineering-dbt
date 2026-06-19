@@ -1,6 +1,6 @@
 # Analytics Engineering with dbt + Snowflake
 
-[![CI](https://github.com/mohammed-taha-el-ahmar/self-healing-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/mohammed-taha-el-ahmar/self-healing-pipeline/actions/workflows/ci.yml)
+[![CI](https://github.com/<you>/<repo>/actions/workflows/ci.yml/badge.svg)](https://github.com/<you>/<repo>/actions/workflows/ci.yml)
 
 Transforms raw operational data into trusted, documented, tested business
 metrics — with full lineage so anyone can trace a number back to its source.
@@ -280,7 +280,7 @@ cp profiles.yml.example ~/.dbt/profiles.yml
 ```
 
 Then export the credentials from step 1 (e.g. in your shell profile or a
-local `.env` you source — never commit these):
+local `.env` you source (source .env) — never commit these):
 
 ```bash
 export SNOWFLAKE_ACCOUNT="abcd-xy12345"     # everything before .snowflakecomputing.com
@@ -351,6 +351,36 @@ finance model all run identically (the incremental filter uses
 | `fct_orders` | marts/core | table | 1 row / order | Central order fact table |
 | `dim_customers` | marts/core | table | 1 row / customer | Customer dimension + lifetime order metrics |
 | `fct_daily_revenue` | marts/finance | incremental | 1 row / order_date | Daily revenue rollup for BI |
+
+## Documentation
+
+Detailed guides live in the [`docs/`](docs/) folder:
+
+| Guide | Description |
+|-------|-------------|
+| [Commands Reference](docs/commands.md) | All Makefile targets, dbt commands, sqlfluff, and model selection syntax |
+| [DuckDB Guide](docs/duckdb-guide.md) | How to open, query, and explore the local DuckDB database |
+| [Troubleshooting](docs/troubleshooting.md) | Common errors and fixes (DuckDB, dbt, Python/uv, CI) |
+
+### Quick reference: querying DuckDB locally
+
+```bash
+# Open the database (requires: brew install duckdb)
+duckdb dev.duckdb
+```
+
+```sql
+-- Models live in custom schemas, NOT in main
+SELECT table_schema, table_name FROM information_schema.tables
+WHERE table_schema NOT IN ('information_schema', 'pg_catalog');
+
+-- Query examples
+SELECT * FROM staging.stg_customers LIMIT 10;
+SELECT * FROM marts.fct_orders LIMIT 10;
+SELECT * FROM marts_finance.fct_daily_revenue LIMIT 10;
+```
+
+---
 
 ## Possible extensions
 
