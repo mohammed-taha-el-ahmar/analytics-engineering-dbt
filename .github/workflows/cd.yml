@@ -70,7 +70,7 @@ jobs:
   deploy-snowflake:
     name: "Deploy to Snowflake + Publish Docs (optional)"
     needs: smoke-test
-    if: ${{ vars.SNOWFLAKE_ENABLED == 'true' || secrets.SNOWFLAKE_ACCOUNT != '' }}
+    if: vars.SNOWFLAKE_ENABLED == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true  # failure here does NOT fail the workflow
     environment:
