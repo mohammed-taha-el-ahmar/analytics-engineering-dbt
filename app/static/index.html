@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NL→SQL — dbt Marts Console</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">⌁</span>
+        <span class="brand-name">NL<span class="accent-amber">→</span>SQL</span>
+        <span class="brand-sub">dbt marts console</span>
+      </div>
+      <span id="dbBadge" class="badge">connecting…</span>
+    </header>
+
+    <main class="layout">
+      <section class="panel main-panel">
+        <form id="askForm" class="ask-row">
+          <input
+            id="question"
+            type="text"
+            autocomplete="off"
+            placeholder="Ask a question about the marts — e.g. "top 5 customers by lifetime order value""
+          />
+          <button type="submit" id="askBtn">Run</button>
+        </form>
+
+        <div id="output" class="output" hidden>
+          <div class="block">
+            <div class="block-label">attempt trail</div>
+            <div id="trail" class="trail"></div>
+          </div>
+
+          <div class="block">
+            <div class="block-label">generated sql</div>
+            <pre id="sqlBlock" class="sql-block"></pre>
+            <p id="explanation" class="explanation"></p>
+          </div>
+
+          <div class="block">
+            <div class="block-label" id="resultLabel">result</div>
+            <div id="resultWrap" class="result-wrap">
+              <table id="resultTable"></table>
+            </div>
+          </div>
+        </div>
+
+        <div id="errorBox" class="error-box" hidden></div>
+        <div id="emptyState" class="empty-state">
+          Ask a question above. The agent grounds itself in the mart schemas on the
+          right, writes a read-only query, and retries on its own if the query
+          fails validation or execution.
+        </div>
+      </section>
+
+      <aside class="panel side-panel">
+        <div class="block-label">available marts</div>
+        <div id="catalogList" class="catalog-list">loading…</div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

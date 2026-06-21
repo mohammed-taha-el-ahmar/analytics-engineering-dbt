@@ -2,7 +2,7 @@
     config(
         materialized = 'incremental',
         unique_key = 'order_date',
-        incremental_strategy = 'merge',
+        incremental_strategy = 'delete+insert' if target.type == 'duckdb' else 'merge',
         on_schema_change = 'sync_all_columns'
     )
 }}
@@ -17,9 +17,10 @@
     only re-scan and re-merge days that are new or could still be changing
     (today and yesterday, to absorb late-arriving payments).
 
-    `unique_key = 'order_date'` + `merge` strategy means Snowflake upserts:
-    existing days are replaced, new days are inserted, untouched history is
-    left alone.
+    `unique_key = 'order_date'` means existing days are replaced, new days
+    are inserted, untouched history is left alone. We use `merge` on Snowflake
+    and `delete+insert` on DuckDB (which doesn't support `merge`) — both
+    achieve the same semantic result.
 
     Run `dbt run --full-refresh -s fct_daily_revenue` to rebuild from scratch
     (e.g. after a backfill or a logic change to this model).

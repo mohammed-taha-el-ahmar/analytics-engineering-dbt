@@ -1,7 +1,7 @@
 # Convenience wrappers around `uv run dbt ...`.
 # All commands assume ~/.dbt/profiles.yml is configured (see profiles.yml.example).
 
-.PHONY: install deps seed run test build docs docs-serve clean full-refresh local-test lint ci
+.PHONY: install deps seed run test build docs docs-serve clean full-refresh local-test lint ci agent-install agent-test agent-lint agent-serve
 
 # Install Python deps (dbt-core + dbt-snowflake) into .venv via uv
 install:
@@ -59,3 +59,25 @@ ci:
 	uv run dbt deps
 	$(MAKE) lint
 	$(MAKE) local-test
+
+# ---------------------------------------------------------------------------
+# NL-to-SQL Agent
+# ---------------------------------------------------------------------------
+
+# Install agent dependencies
+agent-install:
+	uv sync --extra agent
+
+# Run agent tests (no API key or live infra needed)
+agent-test:
+	uv run pytest tests_agent/ -v
+
+# Lint agent + app code
+agent-lint:
+	uv run ruff check agent/ app/ tests_agent/
+
+# Serve the agent web console locally (requires GROQ_API_KEY + a built DuckDB)
+# Usage: make agent-serve
+#   or:  GROQ_API_KEY=gsk_... make agent-serve
+agent-serve:
+	uv run uvicorn app.main:app --reload --port 8000

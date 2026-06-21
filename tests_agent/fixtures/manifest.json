@@ -1,0 +1,72 @@
+{
+  "nodes": {
+    "model.analytics.stg_orders": {
+      "resource_type": "model",
+      "name": "stg_orders",
+      "path": "staging/stg_orders.sql",
+      "tags": [],
+      "description": "Staging model — not exposed to the agent.",
+      "relation_name": "\"analytics\".\"staging\".\"stg_orders\"",
+      "columns": {}
+    },
+    "model.analytics.fct_orders": {
+      "resource_type": "model",
+      "name": "fct_orders",
+      "path": "marts/core/fct_orders.sql",
+      "tags": [],
+      "schema": "marts",
+      "description": "One row per order, with status and totals.",
+      "relation_name": "\"analytics\".\"marts_core\".\"fct_orders\"",
+      "columns": {
+        "order_id": {
+          "data_type": "varchar",
+          "description": "Primary key for an order."
+        },
+        "customer_id": {
+          "data_type": "varchar",
+          "description": "Foreign key to dim_customers."
+        },
+        "order_total": {
+          "data_type": "numeric",
+          "description": "Total order value in USD."
+        },
+        "order_date": {
+          "data_type": "date",
+          "description": "Date the order was placed."
+        }
+      }
+    },
+    "model.analytics.dim_customers": {
+      "resource_type": "model",
+      "name": "dim_customers",
+      "path": "marts/core/dim_customers.sql",
+      "tags": [],
+      "schema": "marts",
+      "description": "One row per customer.",
+      "relation_name": "\"analytics\".\"marts_core\".\"dim_customers\"",
+      "columns": {
+        "customer_id": {
+          "data_type": "varchar",
+          "description": "Primary key for a customer."
+        },
+        "customer_name": {
+          "data_type": "varchar",
+          "description": "Customer's full name."
+        },
+        "signup_date": {
+          "data_type": "date",
+          "description": "Date the customer signed up."
+        }
+      }
+    },
+    "seed.analytics.raw_orders_seed": {
+      "resource_type": "seed",
+      "name": "raw_orders_seed",
+      "path": "seeds/raw_orders_seed.csv",
+      "tags": [],
+      "description": "A seed, not a model — should never appear in the catalog.",
+      "relation_name": "\"analytics\".\"seeds\".\"raw_orders_seed\"",
+      "columns": {}
+    }
+  }
+}

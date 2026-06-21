@@ -84,15 +84,15 @@ centered on `fct_daily_revenue`, and pair it with the table above.
 
 ```
 .
-├── pyproject.toml          # uv-managed deps: dbt-core, dbt-snowflake (+ optional dbt-duckdb, sqlfluff)
+├── pyproject.toml          # uv-managed deps: dbt-core, dbt-snowflake (+ optional dbt-duckdb, sqlfluff, agent)
 ├── dbt_project.yml          # layer config: staging=view, intermediate=ephemeral, marts=table
 ├── packages.yml              # dbt_utils (pinned by git revision)
 ├── profiles.yml.example     # copy to ~/.dbt/profiles.yml and fill in env vars
 ├── .sqlfluff                  # SQL lint config (dbt templater, snowflake dialect)
 ├── Makefile                  # uv run dbt <command> shortcuts, incl. `make ci`
 ├── .github/workflows/
-│   ├── ci.yml                # PR/push: lint + dbt build --target local (DuckDB, no secrets)
-│   └── cd.yml                # main: dbt build --target prod (Snowflake) + publish dbt docs
+│   ├── ci.yml                # PR/push: lint + dbt build --target local (DuckDB, no secrets) + agent tests
+│   └── cd.yml                # main: DuckDB smoke test (required) + optional Snowflake deploy
 ├── scripts/
 │   └── snowflake_setup.sql  # one-time warehouse/db/schema/role setup
 ├── seeds/                     # raw_customers, raw_orders, raw_payments (CSV)
@@ -106,9 +106,23 @@ centered on `fct_daily_revenue`, and pair it with the table above.
 │   ├── generate_schema_name.sql   # exact +schema names, no target prefix
 │   └── generic_tests/
 │       └── test_not_negative.sql  # custom generic test
-└── tests/                     # singular business-logic tests
-    ├── assert_completed_orders_reconcile_with_payments.sql
-    └── assert_no_future_order_dates.sql
+├── tests/                     # singular business-logic tests
+│   ├── assert_completed_orders_reconcile_with_payments.sql
+│   └── assert_no_future_order_dates.sql
+├── agent/                     # NL-to-SQL agent (grounded in dbt manifest)
+│   ├── catalog.py             # parse manifest.json → mart schemas
+│   ├── query_agent.py         # agentic loop: generate → guard → execute → self-correct
+│   ├── sql_guard.py           # read-only SQL validation via sqlglot
+│   └── db_adapters/           # DuckDB + Snowflake backends
+├── app/                       # FastAPI web console for the agent
+│   ├── main.py
+│   └── static/                # vanilla HTML/CSS/JS frontend
+├── tests_agent/               # 23 agent tests (no live infra needed)
+└── docs/                      # project documentation
+    ├── commands.md
+    ├── duckdb-guide.md
+    ├── agent.md
+    └── troubleshooting.md
 ```
 
 ## Key technical decisions
@@ -182,10 +196,15 @@ from a `fct_orders` that only grows). It's configured as:
 {{ config(
     materialized = 'incremental',
     unique_key = 'order_date',
-    incremental_strategy = 'merge',
+    incremental_strategy = 'delete+insert' if target.type == 'duckdb' else 'merge',
     on_schema_change = 'sync_all_columns'
 ) }}
 ```
+
+The `incremental_strategy` dispatches per adapter: **`merge`** for Snowflake
+(upserts — existing days are replaced, new days are inserted) and
+**`delete+insert`** for DuckDB (which doesn't support `merge`). Both achieve
+the same semantic result with `unique_key = 'order_date'`.
 
 On an incremental run, it only re-scans and re-merges the **last two days**
 of `fct_orders` (recent days may still receive late-arriving payments that
@@ -352,6 +371,35 @@ finance model all run identically (the incremental filter uses
 | `dim_customers` | marts/core | table | 1 row / customer | Customer dimension + lifetime order metrics |
 | `fct_daily_revenue` | marts/finance | incremental | 1 row / order_date | Daily revenue rollup for BI |
 
+## NL-to-SQL Agent
+
+The project includes an **NL-to-SQL agent** — a web console where you type a
+question in plain English and the agent writes, validates, executes, and
+self-corrects SQL against the project's real dbt marts.
+
+```bash
+# Install agent dependencies
+uv sync --extra agent
+
+# Build the dbt project (data + manifest)
+uv sync --extra dev && uv run dbt deps && uv run dbt build --target local
+uv run dbt docs generate --target local
+
+# Start the agent (requires a Groq API key)
+export GROQ_API_KEY="gsk_..."
+make agent-serve
+```
+
+Open http://localhost:8000 to use the console. See [docs/agent.md](docs/agent.md)
+for full details on architecture, configuration, and testing.
+
+**Key features:**
+- Grounded in dbt metadata (`target/manifest.json`) — only mart models are queryable
+- SQL guard validates every query before execution (SELECT-only, allowed tables, row limit)
+- Self-correction loop: if a query fails, the error goes back to the LLM (up to 3 attempts)
+- Dual backend: DuckDB locally, Snowflake in production
+- 23 tests, all passing without live infrastructure
+
 ## Documentation
 
 Detailed guides live in the [`docs/`](docs/) folder:
@@ -360,6 +408,7 @@ Detailed guides live in the [`docs/`](docs/) folder:
 |-------|-------------|
 | [Commands Reference](docs/commands.md) | All Makefile targets, dbt commands, sqlfluff, and model selection syntax |
 | [DuckDB Guide](docs/duckdb-guide.md) | How to open, query, and explore the local DuckDB database |
+| [NL-to-SQL Agent](docs/agent.md) | Agent architecture, setup, API, environment variables, and testing |
 | [Troubleshooting](docs/troubleshooting.md) | Common errors and fixes (DuckDB, dbt, Python/uv, CI) |
 
 ### Quick reference: querying DuckDB locally
@@ -389,5 +438,6 @@ SELECT * FROM marts_finance.fct_daily_revenue LIMIT 10;
 - A `dbt-expectations` package for distribution-based anomaly tests
   (e.g. "today's order count shouldn't drop >50% vs. the trailing average")
 - Snapshots (`snapshots/`) for slowly-changing customer attributes
-- A real BI layer (e.g. a small Streamlit/Evidence dashboard) reading from
-  `fct_daily_revenue` and `dim_customers`
+- Per-backend schema qualification in the agent's SQL guard (resolve the
+  active `DB_TARGET`'s actual schema and qualify table names accordingly)
+- Result caching for repeated agent questions (cut Groq calls on a public demo)

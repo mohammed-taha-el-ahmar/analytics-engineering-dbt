@@ -15,7 +15,21 @@ dev = [
     "sqlfluff>=3,<4",
     "sqlfluff-templater-dbt>=3,<4",
 ]
+agent = [
+    "dbt-duckdb>=1.8,<1.9",
+    "requests>=2.31",
+    "sqlglot>=25.0",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pytest>=8.0",
+    "ruff>=0.5",
+]
 
 # This is a tool/runtime environment for dbt, not an importable Python package.
 [tool.uv]
 package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests_agent"]

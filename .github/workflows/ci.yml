@@ -1,5 +1,8 @@
 name: CI
 
+# Runs on every push and PR. Lints SQL and runs the full dbt build+test suite
+# against the local DuckDB target -- no Snowflake account or secrets needed,
+# so this also runs cleanly on PRs from forks.
 on:
   pull_request:
   push:
@@ -37,3 +40,27 @@ jobs:
 
       - name: dbt docs generate (catches doc/lineage errors)
         run: uv run dbt docs generate --target local
+
+  # ---------------------------------------------------------------------------
+  # NL-to-SQL Agent tests (no API key or live infra needed)
+  # ---------------------------------------------------------------------------
+  agent-tests:
+    name: "Agent Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install agent dependencies
+        run: uv sync --extra agent
+
+      - name: Lint agent code
+        run: uv run ruff check agent/ app/ tests_agent/
+
+      - name: Run agent tests
+        run: uv run pytest tests_agent/ -v
