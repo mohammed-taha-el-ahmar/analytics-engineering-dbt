@@ -1,6 +1,6 @@
 # Analytics Engineering with dbt + Snowflake
 
-[![CI](https://github.com/<you>/<repo>/actions/workflows/ci.yml/badge.svg)](https://github.com/<you>/<repo>/actions/workflows/ci.yml)
+[![CI](https://github.com/mohammed-taha-el-ahmar/analytics-engineering-dbt/actions/workflows/ci.yml/badge.svg)](https://github.com/mohammed-taha-el-ahmar/analytics-engineering-dbt/actions/workflows/ci.yml)
 
 Transforms raw operational data into trusted, documented, tested business
 metrics — with full lineage so anyone can trace a number back to its source.
